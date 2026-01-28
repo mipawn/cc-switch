@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2026-01-28
+
+### Added
+
+- 新增 `export` 命令，支持导出配置到 JSON 文件
+  - 支持导出全部或指定 profile
+  - `--no-defaults` 选项可排除公共变量
+- 新增 `import` 命令，支持从 JSON 文件导入配置
+  - 支持交互式选择覆盖冲突的配置
+  - `--force` 选项强制覆盖
+  - `--merge-defaults` 自动合并公共变量
+  - `--no-defaults` 跳过导入公共变量
+- Shell 补全支持 export/import 命令
+
 ## [0.1.1] - 2026-01-28
 
 ### Added
