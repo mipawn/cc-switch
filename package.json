@@ -1,0 +1,38 @@
+{
+  "name": "cc-switch",
+  "version": "0.1.0",
+  "description": "CLI tool for managing multiple Claude Code configurations",
+  "type": "module",
+  "bin": {
+    "cc-switch": "./dist/cc-switch"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build ./src/index.ts --compile --outfile ./dist/cc-switch",
+    "build:all": "bun run build:darwin-arm64 && bun run build:darwin-x64 && bun run build:linux-x64 && bun run build:windows-x64",
+    "build:darwin-arm64": "bun build ./src/index.ts --compile --target=bun-darwin-arm64 --outfile ./dist/cc-switch-darwin-arm64",
+    "build:darwin-x64": "bun build ./src/index.ts --compile --target=bun-darwin-x64 --outfile ./dist/cc-switch-darwin-x64",
+    "build:linux-x64": "bun build ./src/index.ts --compile --target=bun-linux-x64 --outfile ./dist/cc-switch-linux-x64",
+    "build:windows-x64": "bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile ./dist/cc-switch-windows-x64.exe"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.2.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mipawn/cc-switch.git"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "cli",
+    "config",
+    "switch"
+  ],
+  "author": "mipawn",
+  "license": "MIT"
+}
