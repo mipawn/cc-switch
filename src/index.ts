@@ -15,6 +15,8 @@ import {
   removeDefaultsCommand,
 } from "./commands/defaults";
 import { configCommand, configPathCommand } from "./commands/config";
+import { completionCommand } from "./commands/completion";
+import { uninstallCommand } from "./commands/uninstall";
 
 const HELP_TEXT = `
 ${APP_NAME} v${VERSION}
@@ -36,6 +38,8 @@ Usage:
   ${APP_NAME} config                       Open config file in editor
   ${APP_NAME} config --path                Print config file path
   ${APP_NAME} update                       Check for updates
+  ${APP_NAME} uninstall                    Uninstall cc-switch
+  ${APP_NAME} completion <shell>           Generate shell completion script
   ${APP_NAME} --help                       Show this help message
   ${APP_NAME} --version                    Show version
 
@@ -138,6 +142,14 @@ async function main(): Promise<void> {
 
     case "update":
       await updateCommand();
+      break;
+
+    case "uninstall":
+      await uninstallCommand();
+      break;
+
+    case "completion":
+      completionCommand(args[1]);
       break;
 
     default:

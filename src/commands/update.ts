@@ -1,6 +1,6 @@
 import { confirm } from "@inquirer/prompts";
 import { VERSION } from "../constants";
-import { checkForUpdates, performUpdate } from "../utils/updater";
+import { checkForUpdates, installCompletions, performUpdate } from "../utils/updater";
 
 export async function updateCommand(): Promise<void> {
   console.log(`Current version: ${VERSION}`);
@@ -11,6 +11,8 @@ export async function updateCommand(): Promise<void> {
 
     if (!hasUpdate) {
       console.log("You are already running the latest version.");
+      // Repair for existing users: ensure completions exist even when no update is needed.
+      await installCompletions({ mode: "ensure" });
       return;
     }
 
@@ -23,6 +25,8 @@ export async function updateCommand(): Promise<void> {
 
     if (!confirmed) {
       console.log("Update cancelled.");
+      // Still ensure shell completions are installed (repair mode).
+      await installCompletions({ mode: "ensure" });
       return;
     }
 

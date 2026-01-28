@@ -26,6 +26,39 @@ curl -fsSL https://raw.githubusercontent.com/mipawn/cc-switch/main/scripts/insta
 
 从 [Releases](https://github.com/mipawn/cc-switch/releases) 下载适合你平台的二进制文件，放到系统 PATH 目录中即可。
 
+## 命令补全（Tab）
+
+安装时会自动配置命令补全。如果补全没生效，可手动添加：
+
+**Zsh:** 在 `~/.zshrc` 中添加：
+```bash
+fpath=(~/.zsh/completions $fpath)
+autoload -Uz compinit && compinit
+```
+然后生成补全文件：
+```bash
+mkdir -p ~/.zsh/completions
+cc-switch completion zsh > ~/.zsh/completions/_cc-switch
+```
+
+**Bash:**
+```bash
+mkdir -p ~/.local/share/bash-completion/completions
+cc-switch completion bash > ~/.local/share/bash-completion/completions/cc-switch
+```
+
+**Fish:**
+```bash
+mkdir -p ~/.config/fish/completions
+cc-switch completion fish > ~/.config/fish/completions/cc-switch.fish
+```
+
+## 卸载
+
+```bash
+cc-switch uninstall
+```
+
 ## 使用方法
 
 ### 交互模式
@@ -55,6 +88,7 @@ cc-switch
 | `cc-switch config`                | 用编辑器打开配置文件        |
 | `cc-switch config --path`         | 显示配置文件路径            |
 | `cc-switch update`                | 检查并安装更新              |
+| `cc-switch uninstall`             | 卸载 cc-switch              |
 | `cc-switch --help`                | 显示帮助信息                |
 | `cc-switch --version`             | 显示版本号                  |
 

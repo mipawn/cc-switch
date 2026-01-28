@@ -108,6 +108,60 @@ install() {
     info "Installed ${BINARY_NAME} to ${INSTALL_DIR}/${BINARY_NAME}"
 }
 
+# Install shell completions
+install_completions() {
+    info "Installing shell completions..."
+
+    # Zsh completions
+    if command -v zsh &> /dev/null; then
+        ZSH_COMPLETION_DIR="${HOME}/.zsh/completions"
+        ZSH_COMPLETION_FILE="${ZSH_COMPLETION_DIR}/_${BINARY_NAME}"
+        mkdir -p "$ZSH_COMPLETION_DIR"
+
+        # Always write completion file
+        "${INSTALL_DIR}/${BINARY_NAME}" completion zsh > "${ZSH_COMPLETION_FILE}"
+        info "Zsh completions installed to ${ZSH_COMPLETION_FILE}"
+
+        # Configure fpath in .zshrc if not already set
+        if grep -q '\.zsh/completions' "${HOME}/.zshrc" 2>/dev/null; then
+            info "Zsh fpath already configured"
+        elif grep -q 'oh-my-zsh\|zinit\|zplug\|antigen' "${HOME}/.zshrc" 2>/dev/null; then
+            # For framework users, still need to add fpath but skip compinit (framework handles it)
+            echo "" >> "${HOME}/.zshrc"
+            echo "# cc-switch completions" >> "${HOME}/.zshrc"
+            echo 'fpath=(~/.zsh/completions $fpath)' >> "${HOME}/.zshrc"
+            info "Added fpath to ~/.zshrc (compinit handled by your zsh framework)"
+        else
+            # Plain zsh, add both fpath and compinit
+            echo "" >> "${HOME}/.zshrc"
+            echo "# cc-switch completions" >> "${HOME}/.zshrc"
+            echo 'fpath=(~/.zsh/completions $fpath)' >> "${HOME}/.zshrc"
+            if ! grep -q 'compinit' "${HOME}/.zshrc" 2>/dev/null; then
+                echo 'autoload -Uz compinit && compinit' >> "${HOME}/.zshrc"
+            fi
+            info "Added completion config to ~/.zshrc"
+        fi
+    fi
+
+    # Bash completions
+    if command -v bash &> /dev/null; then
+        BASH_COMPLETION_DIR="${HOME}/.local/share/bash-completion/completions"
+        BASH_COMPLETION_FILE="${BASH_COMPLETION_DIR}/${BINARY_NAME}"
+        mkdir -p "$BASH_COMPLETION_DIR"
+        "${INSTALL_DIR}/${BINARY_NAME}" completion bash > "${BASH_COMPLETION_FILE}"
+        info "Bash completions installed to ${BASH_COMPLETION_FILE}"
+    fi
+
+    # Fish completions
+    if command -v fish &> /dev/null; then
+        FISH_COMPLETION_DIR="${HOME}/.config/fish/completions"
+        FISH_COMPLETION_FILE="${FISH_COMPLETION_DIR}/${BINARY_NAME}.fish"
+        mkdir -p "$FISH_COMPLETION_DIR"
+        "${INSTALL_DIR}/${BINARY_NAME}" completion fish > "${FISH_COMPLETION_FILE}"
+        info "Fish completions installed to ${FISH_COMPLETION_FILE}"
+    fi
+}
+
 # Verify installation
 verify() {
     if command -v "$BINARY_NAME" &> /dev/null; then
@@ -116,6 +170,7 @@ verify() {
         "$BINARY_NAME" --version
         echo ""
         info "Run '${BINARY_NAME} --help' to get started"
+        info "Restart your shell or run 'source ~/.zshrc' to enable completions"
     else
         warn "Installation completed, but ${BINARY_NAME} is not in PATH"
         warn "You may need to add ${INSTALL_DIR} to your PATH"
@@ -131,6 +186,7 @@ main() {
     detect_platform
     get_latest_version
     install
+    install_completions
     verify
 }
 

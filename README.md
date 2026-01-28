@@ -26,6 +26,39 @@ curl -fsSL https://raw.githubusercontent.com/mipawn/cc-switch/main/scripts/insta
 
 Download the binary for your platform from [Releases](https://github.com/mipawn/cc-switch/releases) and place it in your PATH.
 
+## Shell Completion (Tab)
+
+Completions are installed automatically during installation. If not working, add manually:
+
+**Zsh:** Add to `~/.zshrc`:
+```bash
+fpath=(~/.zsh/completions $fpath)
+autoload -Uz compinit && compinit
+```
+Then generate completion file:
+```bash
+mkdir -p ~/.zsh/completions
+cc-switch completion zsh > ~/.zsh/completions/_cc-switch
+```
+
+**Bash:**
+```bash
+mkdir -p ~/.local/share/bash-completion/completions
+cc-switch completion bash > ~/.local/share/bash-completion/completions/cc-switch
+```
+
+**Fish:**
+```bash
+mkdir -p ~/.config/fish/completions
+cc-switch completion fish > ~/.config/fish/completions/cc-switch.fish
+```
+
+## Uninstall
+
+```bash
+cc-switch uninstall
+```
+
 ## Usage
 
 ### Interactive Mode
@@ -55,6 +88,7 @@ cc-switch
 | `cc-switch config` | Open config file in editor |
 | `cc-switch config --path` | Print config file path |
 | `cc-switch update` | Check and install updates |
+| `cc-switch uninstall` | Uninstall cc-switch |
 | `cc-switch --help` | Show help message |
 | `cc-switch --version` | Show version |
 

@@ -1,8 +1,9 @@
 import { homedir } from "os";
 import { join } from "path";
+import packageJson from "../package.json";
 
 export const APP_NAME = "cc-switch";
-export const VERSION = "0.1.0";
+export const VERSION = packageJson.version;
 
 export const CONFIG_DIR = join(homedir(), ".config", APP_NAME);
 export const CONFIG_FILE = join(CONFIG_DIR, "config.json");
