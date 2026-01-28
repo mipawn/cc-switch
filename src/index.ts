@@ -17,6 +17,8 @@ import {
 import { configCommand, configPathCommand } from "./commands/config";
 import { completionCommand } from "./commands/completion";
 import { uninstallCommand } from "./commands/uninstall";
+import { exportCommand } from "./commands/export";
+import { importCommand } from "./commands/import";
 
 const HELP_TEXT = `
 ${APP_NAME} v${VERSION}
@@ -37,6 +39,8 @@ Usage:
   ${APP_NAME} defaults rm KEY [...]        Remove default env vars
   ${APP_NAME} config                       Open config file in editor
   ${APP_NAME} config --path                Print config file path
+  ${APP_NAME} export [name] [--no-defaults] Export profiles to JSON
+  ${APP_NAME} import <file> [--force]      Import profiles from JSON
   ${APP_NAME} update                       Check for updates
   ${APP_NAME} uninstall                    Uninstall cc-switch
   ${APP_NAME} completion <shell>           Generate shell completion script
@@ -51,6 +55,9 @@ Examples:
   ${APP_NAME} defaults set API_TIMEOUT=30000
   ${APP_NAME} config                       # Edit config.json directly
   ${APP_NAME} use myprofile -p             # Use 'myprofile' with claude args
+  ${APP_NAME} export > backup.json         # Export all profiles to file
+  ${APP_NAME} export myprofile             # Export single profile
+  ${APP_NAME} import backup.json           # Import profiles from file
 `;
 
 async function main(): Promise<void> {
@@ -139,6 +146,14 @@ async function main(): Promise<void> {
       }
       break;
     }
+
+    case "export":
+      exportCommand(args.slice(1));
+      break;
+
+    case "import":
+      await importCommand(args.slice(1));
+      break;
 
     case "update":
       await updateCommand();

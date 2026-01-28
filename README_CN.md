@@ -8,6 +8,7 @@
 
 - 管理多个 Claude Code 配置文件，支持不同的 API 配置
 - **公共环境变量** - 所有配置共享的默认变量
+- **导入/导出** - 备份、分享和迁移配置
 - 交互式配置选择
 - `--set` 快速编辑单个变量
 - 直接编辑配置文件
@@ -87,6 +88,8 @@ cc-switch
 | `cc-switch defaults rm KEY`       | 删除公共环境变量            |
 | `cc-switch config`                | 用编辑器打开配置文件        |
 | `cc-switch config --path`         | 显示配置文件路径            |
+| `cc-switch export [name]`         | 导出配置到 JSON             |
+| `cc-switch import <file>`         | 从 JSON 导入配置            |
 | `cc-switch update`                | 检查并安装更新              |
 | `cc-switch uninstall`             | 卸载 cc-switch              |
 | `cc-switch --help`                | 显示帮助信息                |
@@ -115,6 +118,18 @@ cc-switch config
 
 # 使用配置并传递 claude 参数
 cc-switch use myprofile --dangerously-skip-permissions
+
+# 导出所有配置到文件
+cc-switch export > backup.json
+
+# 导出单个配置
+cc-switch export myprofile > single.json
+
+# 从文件导入配置
+cc-switch import backup.json
+
+# 强制覆盖导入
+cc-switch import backup.json --force
 ```
 
 ## 配置说明
@@ -164,6 +179,40 @@ cc-switch defaults set API_TIMEOUT_MS=300000
 | `ANTHROPIC_API_KEY`                        | API 密钥（令牌的替代方式） |
 | `API_TIMEOUT_MS`                           | API 请求超时时间（毫秒）   |
 | `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | 禁用遥测                   |
+
+### 导入/导出
+
+在不同机器间备份、分享或迁移配置。
+
+```bash
+# 导出所有配置（包含公共变量）
+cc-switch export > backup.json
+
+# 导出指定配置
+cc-switch export myprofile > single.json
+
+# 导出时不包含公共变量
+cc-switch export --no-defaults > profiles-only.json
+
+# 从文件导入
+cc-switch import backup.json
+
+# 强制覆盖导入（跳过确认）
+cc-switch import backup.json --force
+
+# 导入时不包含公共变量
+cc-switch import backup.json --no-defaults
+```
+
+**导出选项：**
+- `--no-defaults` - 不包含公共变量
+
+**导入选项：**
+- `--force` / `-f` - 覆盖已存在的配置，跳过确认
+- `--merge-defaults` - 自动合并公共变量
+- `--no-defaults` - 不导入公共变量
+
+> ⚠️ **安全提示：** 导出文件可能包含敏感数据（API 密钥、令牌），请妥善保管。
 
 ## 工作原理
 

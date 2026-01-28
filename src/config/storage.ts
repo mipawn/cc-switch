@@ -19,9 +19,12 @@ export function loadConfig(): Config {
   try {
     const content = readFileSync(CONFIG_FILE, "utf-8");
     const config = JSON.parse(content) as Config;
-    // Ensure defaults exists for backward compatibility
+    // Ensure defaults and profiles exist for backward compatibility
     if (!config.defaults) {
       config.defaults = {};
+    }
+    if (!config.profiles) {
+      config.profiles = [];
     }
     return config;
   } catch {

@@ -8,6 +8,7 @@ A CLI tool for managing multiple Claude Code configurations. Quickly switch betw
 
 - Manage multiple Claude Code profiles with different API configurations
 - **Default environment variables** - shared across all profiles
+- **Import/Export** - backup, share, and migrate configurations
 - Interactive profile selection
 - Quick edit with `--set` flag
 - Direct config file editing
@@ -87,6 +88,8 @@ cc-switch
 | `cc-switch defaults rm KEY` | Remove default env vars |
 | `cc-switch config` | Open config file in editor |
 | `cc-switch config --path` | Print config file path |
+| `cc-switch export [name]` | Export profiles to JSON |
+| `cc-switch import <file>` | Import profiles from JSON |
 | `cc-switch update` | Check and install updates |
 | `cc-switch uninstall` | Uninstall cc-switch |
 | `cc-switch --help` | Show help message |
@@ -115,6 +118,18 @@ cc-switch config
 
 # Use a profile with additional claude arguments
 cc-switch use myprofile --dangerously-skip-permissions
+
+# Export all profiles to a file
+cc-switch export > backup.json
+
+# Export a single profile
+cc-switch export myprofile > single.json
+
+# Import profiles from a file
+cc-switch import backup.json
+
+# Import with force overwrite
+cc-switch import backup.json --force
 ```
 
 ## Configuration
@@ -164,6 +179,40 @@ cc-switch defaults set API_TIMEOUT_MS=300000
 | `ANTHROPIC_API_KEY` | API key (alternative to token) |
 | `API_TIMEOUT_MS` | API request timeout in milliseconds |
 | `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | Disable telemetry |
+
+### Import/Export
+
+Backup, share, or migrate your configurations between machines.
+
+```bash
+# Export all profiles (includes defaults)
+cc-switch export > backup.json
+
+# Export specific profile
+cc-switch export myprofile > single.json
+
+# Export without default variables
+cc-switch export --no-defaults > profiles-only.json
+
+# Import from file
+cc-switch import backup.json
+
+# Import with force overwrite (skip confirmation)
+cc-switch import backup.json --force
+
+# Import without defaults
+cc-switch import backup.json --no-defaults
+```
+
+**Export options:**
+- `--no-defaults` - Don't include default variables
+
+**Import options:**
+- `--force` / `-f` - Overwrite existing profiles without confirmation
+- `--merge-defaults` - Auto-merge default variables
+- `--no-defaults` - Skip importing default variables
+
+> ⚠️ **Security Note:** Exported files may contain sensitive data (API keys, tokens). Handle them securely.
 
 ## How It Works
 
