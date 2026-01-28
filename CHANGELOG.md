@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3] - 2026-01-28
+
+### Added
+
+- `update` 命令支持自动检测权限问题并提示使用 sudo 重试
+- 文档补充 `update` 命令的使用说明和 sudo 相关提示
+
 ## [0.1.2] - 2026-01-28
 
 ### Added
