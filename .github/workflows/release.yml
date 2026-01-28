@@ -74,5 +74,7 @@ jobs:
         with:
           files: ./release/*
           generate_release_notes: true
+          body: |
+            For stable releases, please refer to [CHANGELOG.md](https://github.com/mipawn/cc-switch/blob/main/CHANGELOG.md) for details.
           draft: false
           prerelease: false
