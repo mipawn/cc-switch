@@ -1,6 +1,6 @@
 import { confirm } from "@inquirer/prompts";
 import { VERSION } from "../constants";
-import { checkForUpdates, installCompletions, performUpdate } from "../utils/updater";
+import { checkForUpdates, installCompletions, performUpdate, PermissionError } from "../utils/updater";
 
 export async function updateCommand(): Promise<void> {
   console.log(`Current version: ${VERSION}`);
@@ -30,7 +30,26 @@ export async function updateCommand(): Promise<void> {
       return;
     }
 
-    await performUpdate();
+    try {
+      await performUpdate();
+    } catch (err) {
+      if (err instanceof PermissionError) {
+        console.log(`\n${err.message}`);
+        const useSudo = await confirm({
+          message: "Do you want to retry with sudo?",
+          default: true,
+        });
+
+        if (useSudo) {
+          await performUpdate(true);
+        } else {
+          console.log("Update cancelled. You can manually run: sudo cc-switch update");
+          process.exit(1);
+        }
+      } else {
+        throw err;
+      }
+    }
   } catch (err) {
     console.error(`Error: ${(err as Error).message}`);
     process.exit(1);

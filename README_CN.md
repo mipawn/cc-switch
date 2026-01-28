@@ -130,6 +130,13 @@ cc-switch import backup.json
 
 # 强制覆盖导入
 cc-switch import backup.json --force
+
+# 检查并安装更新
+cc-switch update
+
+# 如果更新因权限问题失败，会提示是否使用 sudo 重试
+# 也可以直接使用 sudo 运行：
+sudo cc-switch update
 ```
 
 ## 配置说明

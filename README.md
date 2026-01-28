@@ -130,6 +130,13 @@ cc-switch import backup.json
 
 # Import with force overwrite
 cc-switch import backup.json --force
+
+# Check for updates and install
+cc-switch update
+
+# If update fails due to permissions, you'll be prompted to retry with sudo
+# Or run directly with sudo:
+sudo cc-switch update
 ```
 
 ## Configuration

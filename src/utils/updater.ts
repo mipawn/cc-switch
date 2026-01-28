@@ -32,7 +32,7 @@ export async function checkForUpdates(): Promise<{ hasUpdate: boolean; latestVer
   }
 }
 
-export async function performUpdate(): Promise<void> {
+export async function performUpdate(useSudo = false): Promise<void> {
   const platform = process.platform;
   const arch = process.arch;
 
@@ -67,16 +67,37 @@ export async function performUpdate(): Promise<void> {
 
     // Download and replace
     const downloadUrl = asset.browser_download_url;
-    execSync(`curl -fsSL "${downloadUrl}" -o "${execPath}.new"`, { stdio: "inherit" });
-    execSync(`chmod +x "${execPath}.new"`);
-    execSync(`mv "${execPath}.new" "${execPath}"`);
+    const sudoPrefix = useSudo ? "sudo " : "";
+
+    try {
+      execSync(`curl -fsSL "${downloadUrl}" -o "${execPath}.new"`, { stdio: "inherit" });
+      execSync(`${sudoPrefix}chmod +x "${execPath}.new"`, { stdio: "inherit" });
+      execSync(`${sudoPrefix}mv "${execPath}.new" "${execPath}"`, { stdio: "inherit" });
+    } catch (cmdErr) {
+      // Check if it's a permission error and we haven't tried sudo yet
+      const errMsg = (cmdErr as Error).message.toLowerCase();
+      if (!useSudo && (errMsg.includes("permission denied") || errMsg.includes("eacces"))) {
+        throw new PermissionError("Permission denied. The binary may be installed in a protected directory.");
+      }
+      throw cmdErr;
+    }
 
     console.log(`Successfully updated to ${release.tag_name}`);
 
     // Update completions after binary update
     await installCompletions({ mode: "update" });
   } catch (err) {
+    if (err instanceof PermissionError) {
+      throw err;
+    }
     throw new Error(`Update failed: ${(err as Error).message}`);
+  }
+}
+
+export class PermissionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PermissionError";
   }
 }
 
