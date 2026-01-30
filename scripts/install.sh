@@ -125,8 +125,26 @@ install_completions() {
         # Configure fpath in .zshrc if not already set
         if grep -q '\.zsh/completions' "${HOME}/.zshrc" 2>/dev/null; then
             info "Zsh fpath already configured"
-        elif grep -q 'oh-my-zsh\|zinit\|zplug\|antigen' "${HOME}/.zshrc" 2>/dev/null; then
-            # For framework users, still need to add fpath but skip compinit (framework handles it)
+        elif grep -q 'oh-my-zsh' "${HOME}/.zshrc" 2>/dev/null; then
+            # For oh-my-zsh users, insert fpath BEFORE source oh-my-zsh.sh
+            # This is critical because compinit runs during oh-my-zsh init
+            FPATH_LINE='fpath=(~/.zsh/completions $fpath)'
+            COMMENT_LINE='# cc-switch completions'
+            # Use sed to insert before the source line
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                # macOS sed requires different syntax
+                sed -i '' "/^[[:space:]]*source.*oh-my-zsh\.sh/i\\
+\\
+${COMMENT_LINE}\\
+${FPATH_LINE}
+" "${HOME}/.zshrc"
+            else
+                # GNU sed
+                sed -i "/^[[:space:]]*source.*oh-my-zsh\.sh/i \\\n${COMMENT_LINE}\n${FPATH_LINE}" "${HOME}/.zshrc"
+            fi
+            info "Added fpath to ~/.zshrc (before oh-my-zsh init)"
+        elif grep -q 'zinit\|zplug\|antigen' "${HOME}/.zshrc" 2>/dev/null; then
+            # For other framework users, append to end (they handle compinit differently)
             echo "" >> "${HOME}/.zshrc"
             echo "# cc-switch completions" >> "${HOME}/.zshrc"
             echo 'fpath=(~/.zsh/completions $fpath)' >> "${HOME}/.zshrc"
