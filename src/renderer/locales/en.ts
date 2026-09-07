@@ -567,7 +567,20 @@ export default {
     usagePathMapHint: 'Single path (e.g. data.balance) or JSON path map',
     usagePathMapTemplate: 'Path map template',
     modelMapping: 'Model Mapping',
-    modelMappingHint: 'Only rewrite model names in requests sent upstream',
+    modelMappingHint: 'Configure upstream models and the Claude Code Auto mode classifier',
+    autoMode: 'Adapt Auto mode classifier',
+    autoModeHint:
+      'Configure the model and thinking for Claude Code permission checks through the local proxy, per key.',
+    autoModeModel: 'Classifier model',
+    autoModeModelPlaceholder: 'Leave blank to follow the session model',
+    autoModeModelHint:
+      'Uses the same provider and key. Blank follows the most recent tool-enabled request in this session, falling back to existing model mappings until observed. Otherwise enter an upstream model ID.',
+    autoModeThinking: 'Classifier thinking',
+    autoModeThinkingHint:
+      'Low sets low effort with a 1024-token thinking budget. Support depends on the provider; use Disabled or Preserve if unsupported.',
+    autoModeThinkingLow: 'Low (default)',
+    autoModeThinkingDisabled: 'Disabled',
+    autoModeThinkingPreserve: 'Preserve original',
     modelMapHaikuExtra: 'Models with haiku in name →',
     modelMapSonnetExtra: 'Models with sonnet in name →',
     modelMapOpusExtra: 'Models with opus in name →',

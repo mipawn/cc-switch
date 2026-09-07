@@ -80,3 +80,28 @@ describe('model mapping serialization', () => {
     expect(modelMappingValueForSave(EMPTY_MODEL_MAPPING, false)).toBeUndefined()
   })
 })
+
+it('round-trips auto mode alongside model mappings and clears it when disabled', () => {
+  const fields = {
+    ...EMPTY_MODEL_MAPPING,
+    opus: 'glm-5',
+    autoMode: { enabled: true, model: ' glm-4.7 ', thinking: 'disabled' as const },
+  }
+  const saved = serializeModelMapping(fields)
+  expect(parseModelMapping(saved)).toEqual({
+    ...fields,
+    autoMode: { enabled: true, model: 'glm-4.7', thinking: 'disabled' },
+  })
+  expect(
+    serializeModelMapping({ ...fields, autoMode: { ...fields.autoMode, enabled: false } }),
+  ).toBe('{"opus":"glm-5"}')
+})
+
+it('defaults auto mode to low thinking and omits a blank follow-session model', () => {
+  const fields = parseModelMapping('{"autoMode":{"enabled":true,"model":"  "}}')
+  expect(fields.autoMode.thinking).toBe('low')
+  expect(JSON.parse(serializeModelMapping(fields)!)).toEqual({
+    autoMode: { enabled: true, thinking: 'low' },
+  })
+  expect(parseModelMapping('{"autoMode":null}').autoMode.enabled).toBe(false)
+})

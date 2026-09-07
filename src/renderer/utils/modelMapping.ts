@@ -4,6 +4,7 @@ export interface ExactModelMapping {
 }
 
 export interface ModelMappingFields {
+  autoMode: { enabled: boolean; model: string; thinking: 'low' | 'disabled' | 'preserve' }
   haiku: string
   sonnet: string
   opus: string
@@ -13,6 +14,7 @@ export interface ModelMappingFields {
 }
 
 export const EMPTY_MODEL_MAPPING: ModelMappingFields = {
+  autoMode: { enabled: false, model: '', thinking: 'low' },
   haiku: '',
   sonnet: '',
   opus: '',
@@ -35,7 +37,16 @@ export function parseModelMapping(value?: string | null): ModelMappingFields {
             .map(([source, target]) => ({ source, target }))
         : []
 
+    const autoMode = parsed.autoMode as Record<string, unknown> | null | undefined
     return {
+      autoMode: {
+        enabled: autoMode?.enabled === true,
+        model: typeof autoMode?.model === 'string' ? autoMode.model : '',
+        thinking:
+          autoMode?.thinking === 'disabled' || autoMode?.thinking === 'preserve'
+            ? autoMode.thinking
+            : 'low',
+      },
       haiku: typeof parsed.haiku === 'string' ? parsed.haiku : '',
       sonnet: typeof parsed.sonnet === 'string' ? parsed.sonnet : '',
       opus: typeof parsed.opus === 'string' ? parsed.opus : '',
@@ -50,6 +61,13 @@ export function parseModelMapping(value?: string | null): ModelMappingFields {
 
 export function serializeModelMapping(fields: ModelMappingFields): string | undefined {
   const mapping: Record<string, unknown> = {}
+  if (fields.autoMode.enabled) {
+    mapping.autoMode = {
+      enabled: true,
+      ...(fields.autoMode.model.trim() ? { model: fields.autoMode.model.trim() } : {}),
+      thinking: fields.autoMode.thinking,
+    }
+  }
 
   for (const key of ['haiku', 'sonnet', 'opus'] as const) {
     const value = fields[key].trim()

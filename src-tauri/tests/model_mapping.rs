@@ -526,3 +526,156 @@ async fn one_m_suffix_case_insensitive() {
     let body = mock.received_body.lock().unwrap();
     assert_eq!(extract_model(&body), "claude-sonnet-4-6");
 }
+
+// Claude Code 2.1.220 classifier wire shape, with a short synthetic transcript.
+fn auto_mode_request(session: &str) -> serde_json::Value {
+    serde_json::json!({
+        "model": "claude-sonnet-5",
+        "system": [{"type": "text", "text": "You are a security monitor for autonomous AI coding agents.\n\n## Context"}],
+        "messages": [{"role": "user", "content": [
+            {"type": "text", "text": "<transcript>\n"},
+            {"type": "text", "text": "User: inspect the repository\nTool: Bash git status"},
+            {"type": "text", "text": "</transcript>\n"}
+        ]}],
+        "metadata": {"user_id": serde_json::json!({"session_id": session}).to_string()},
+        "max_tokens": 64,
+        "thinking": {"type": "disabled"},
+        "temperature": 0,
+        "stop_sequences": ["</block>"],
+        "output_config": {"format": {"type": "json_schema", "schema": {"type": "object"}}}
+    })
+}
+
+async fn forward_auto_mode_body(
+    state: &Arc<cc_use_lib::proxy::ProxyState>,
+    token: &str,
+    mock: &MockUpstream,
+    body: &serde_json::Value,
+) -> serde_json::Value {
+    let response = proxy_handler(
+        AxumState(state.clone()),
+        Request::builder()
+            .method("POST")
+            .uri("/v1/messages?beta=true")
+            .header("authorization", format!("Bearer {}", token))
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    serde_json::from_str(&mock.received_body.lock().unwrap()).unwrap()
+}
+
+#[tokio::test]
+async fn auto_mode_custom_model_and_low_thinking_preserve_classifier_contract() {
+    let mock = start_mock_upstream().await;
+    let (state, token) = setup_provider_with_mapping(
+        mock.port,
+        "claude",
+        Some(
+            r#"{"sonnet":"chat-model","autoMode":{"enabled":true,"model":" deepseek-v4-flash ","thinking":"low"}}"#,
+        ),
+    );
+    let original = auto_mode_request("session-a");
+    let result = forward_auto_mode_body(&state, &token, &mock, &original).await;
+    assert_eq!(result["model"], "deepseek-v4-flash");
+    assert_eq!(
+        result["thinking"],
+        serde_json::json!({"type":"enabled","budget_tokens":1024})
+    );
+    assert_eq!(result["output_config"]["effort"], "low");
+    assert_eq!(result["max_tokens"], 4096);
+    assert!(result.get("temperature").is_none());
+    for field in ["system", "messages", "stop_sequences", "metadata"] {
+        assert_eq!(result[field], original[field], "changed {field}");
+    }
+    assert_eq!(
+        result["output_config"]["format"],
+        original["output_config"]["format"]
+    );
+}
+
+#[tokio::test]
+async fn auto_mode_follows_session_model_without_cross_session_or_side_query_leaks() {
+    let mock = start_mock_upstream().await;
+    let (state, token) = setup_provider_with_mapping(
+        mock.port,
+        "claude",
+        Some(r#"{"opus":"deepseek-v4-pro","sonnet":"fallback","autoMode":{"enabled":true}}"#),
+    );
+    let mut main = serde_json::json!({"model":"claude-opus-4-7","messages":[],
+        "tools":[{"name":"Bash","input_schema":{"type":"object"}}],
+        "metadata":{"user_id":"{\"session_id\":\"session-a\"}"}});
+    forward_auto_mode_body(&state, &token, &mock, &main).await;
+    let mut side_query = main.clone();
+    side_query.as_object_mut().unwrap().remove("tools");
+    side_query["model"] = serde_json::json!("title-model");
+    forward_auto_mode_body(&state, &token, &mock, &side_query).await;
+    let result =
+        forward_auto_mode_body(&state, &token, &mock, &auto_mode_request("session-a")).await;
+    assert_eq!(result["model"], "deepseek-v4-pro");
+    let other =
+        forward_auto_mode_body(&state, &token, &mock, &auto_mode_request("session-b")).await;
+    assert_eq!(other["model"], "fallback");
+    main["model"] = serde_json::json!("glm-5");
+    forward_auto_mode_body(&state, &token, &mock, &main).await;
+    let switched =
+        forward_auto_mode_body(&state, &token, &mock, &auto_mode_request("session-a")).await;
+    assert_eq!(switched["model"], "glm-5");
+}
+
+#[tokio::test]
+async fn auto_mode_does_not_rewrite_user_mentions_or_normal_agent_requests() {
+    let mock = start_mock_upstream().await;
+    let (state, token) = setup_provider_with_mapping(
+        mock.port,
+        "claude",
+        Some(r#"{"autoMode":{"enabled":true,"model":"classifier"}}"#),
+    );
+    let mut request = auto_mode_request("session-a");
+    request["system"] = serde_json::json!("You are a coding assistant.");
+    let result = forward_auto_mode_body(&state, &token, &mock, &request).await;
+    assert_eq!(result, request);
+    let mut request = auto_mode_request("session-a");
+    request["tools"] = serde_json::json!([{"name":"Bash","input_schema":{"type":"object"}}]);
+    let result = forward_auto_mode_body(&state, &token, &mock, &request).await;
+    assert_eq!(result, request);
+}
+
+#[tokio::test]
+async fn auto_mode_supports_disabled_and_preserved_thinking_and_opt_out() {
+    let mock = start_mock_upstream().await;
+    for (config, expected) in [
+        (
+            r#"{"enabled":true,"model":"glm-5","thinking":"disabled"}"#,
+            "disabled",
+        ),
+        (
+            r#"{"enabled":true,"model":"glm-5","thinking":"preserve"}"#,
+            "preserve",
+        ),
+        (r#"{"enabled":false,"model":"glm-5"}"#, "off"),
+    ] {
+        let mapping = format!("{{\"autoMode\":{config}}}");
+        let (state, token) = setup_provider_with_mapping(mock.port, "claude", Some(&mapping));
+        let mut request = auto_mode_request("session-a");
+        request["thinking"] = serde_json::json!({"type":"adaptive"});
+        request["output_config"]["effort"] = serde_json::json!("high");
+        let result = forward_auto_mode_body(&state, &token, &mock, &request).await;
+        match expected {
+            "disabled" => {
+                assert_eq!(result["thinking"], serde_json::json!({"type":"disabled"}));
+                assert!(result["output_config"].get("effort").is_none());
+                assert_eq!(result["model"], "glm-5");
+            }
+            "preserve" => {
+                assert_eq!(result["thinking"], request["thinking"]);
+                assert_eq!(result["output_config"], request["output_config"]);
+                assert_eq!(result["model"], "glm-5");
+            }
+            _ => assert_eq!(result, request),
+        }
+    }
+}

@@ -18,6 +18,7 @@ import {
   Tabs,
   Button,
   Badge,
+  Switch,
 } from 'antd'
 import { useAppMessage } from '../../hooks/useAppMessage'
 import {
@@ -47,6 +48,7 @@ import {
   modelMappingValueForSave,
   parseModelMapping,
   type ExactModelMapping,
+  type ModelMappingFields,
 } from '../../utils/modelMapping'
 import { isOfficialDeepSeekProvider } from '../../utils/officialProviders'
 import styles from './KeyEditModal.module.css'
@@ -101,6 +103,11 @@ export default function KeyEditModal({
   const [haikuModel, setHaikuModel] = useState('')
   const [sonnetModel, setSonnetModel] = useState('')
   const [opusModel, setOpusModel] = useState('')
+  const [autoMode, setAutoMode] = useState<ModelMappingFields['autoMode']>({
+    enabled: false,
+    model: '',
+    thinking: 'low',
+  })
   const [modelOverrides, setModelOverrides] = useState<ModelOverrideRow[]>([])
   const [codexModel, setCodexModel] = useState('')
   const [grokModel, setGrokModel] = useState('')
@@ -178,6 +185,7 @@ export default function KeyEditModal({
       setHaikuModel(mapping.haiku)
       setSonnetModel(mapping.sonnet)
       setOpusModel(mapping.opus)
+      setAutoMode(mapping.autoMode)
       setModelOverrides(mapping.modelOverrides.map(createModelOverrideRow))
       setCodexModel(mapping.codex)
       setGrokModel(mapping.grok)
@@ -199,6 +207,7 @@ export default function KeyEditModal({
       setHaikuModel(isOfficialDeepSeek ? 'deepseek-v4-flash' : '')
       setSonnetModel(isOfficialDeepSeek ? 'deepseek-v4-pro[1m]' : '')
       setOpusModel(isOfficialDeepSeek ? 'deepseek-v4-pro[1m]' : '')
+      setAutoMode({ enabled: false, model: '', thinking: 'low' })
       setModelOverrides([])
       // Keep Codex model selection truthful by default. This optional field is
       // only for gateways whose wire model name differs from the picker entry.
@@ -258,6 +267,7 @@ export default function KeyEditModal({
         haiku: haikuModel,
         sonnet: sonnetModel,
         opus: opusModel,
+        autoMode,
         modelOverrides,
         codex: codexModel,
         grok: grokModel,
@@ -601,6 +611,52 @@ export default function KeyEditModal({
                             />
                           </Form.Item>
                         </div>
+                        <Form.Item label={t('keys.autoMode')} extra={t('keys.autoModeHint')}>
+                          <Switch
+                            checked={autoMode.enabled}
+                            onChange={(enabled) =>
+                              setAutoMode((current) => ({ ...current, enabled }))
+                            }
+                            aria-label={t('keys.autoMode')}
+                          />
+                        </Form.Item>
+                        {autoMode.enabled && (
+                          <>
+                            <Form.Item
+                              label={t('keys.autoModeModel')}
+                              extra={t('keys.autoModeModelHint')}
+                            >
+                              <Input
+                                value={autoMode.model}
+                                onChange={(event) =>
+                                  setAutoMode((current) => ({
+                                    ...current,
+                                    model: event.target.value,
+                                  }))
+                                }
+                                placeholder={t('keys.autoModeModelPlaceholder')}
+                                aria-label={t('keys.autoModeModel')}
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              label={t('keys.autoModeThinking')}
+                              extra={t('keys.autoModeThinkingHint')}
+                            >
+                              <Select
+                                value={autoMode.thinking}
+                                onChange={(thinking: ModelMappingFields['autoMode']['thinking']) =>
+                                  setAutoMode((current) => ({ ...current, thinking }))
+                                }
+                                aria-label={t('keys.autoModeThinking')}
+                                options={[
+                                  { value: 'low', label: t('keys.autoModeThinkingLow') },
+                                  { value: 'disabled', label: t('keys.autoModeThinkingDisabled') },
+                                  { value: 'preserve', label: t('keys.autoModeThinkingPreserve') },
+                                ]}
+                              />
+                            </Form.Item>
+                          </>
+                        )}
                         <div className={styles.exactMappingSection}>
                           <div className={styles.exactMappingHeader}>
                             <div>

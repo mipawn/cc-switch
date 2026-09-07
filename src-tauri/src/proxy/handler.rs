@@ -428,6 +428,39 @@ pub async fn proxy_handler(
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
     let body_bytes = apply_model_mapping(body_bytes, &route_execution);
+    let body_bytes = if matches!(
+        route_execution.cli_type.as_deref(),
+        Some("claude" | "claude_code")
+    ) && method == axum::http::Method::POST
+        && req_path
+            .split('?')
+            .next()
+            .is_some_and(|path| matches!(path, "/v1/messages" | "/claude/v1/messages"))
+    {
+        match (
+            route_execution.model_mapping.as_deref(),
+            route_execution.log_ctx.as_ref(),
+            state.auto_mode.lock(),
+        ) {
+            (Some(mapping), Some(ctx), Ok(mut auto_mode)) => auto_mode.adapt(
+                body_bytes,
+                mapping,
+                &format!(
+                    "{}:{}:{}",
+                    ctx.session_token,
+                    ctx.api_key_id,
+                    route_execution
+                        .upstream_url
+                        .split('?')
+                        .next()
+                        .unwrap_or_default()
+                ),
+            ),
+            _ => body_bytes,
+        }
+    } else {
+        body_bytes
+    };
     let forwarded_request_model = serde_json::from_slice::<serde_json::Value>(&body_bytes)
         .ok()
         .and_then(|value| {

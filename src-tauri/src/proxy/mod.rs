@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{mpsc, Arc, Mutex};
 use tokio::sync::{broadcast, OwnedSemaphorePermit, Semaphore};
 
+mod auto_mode;
 pub mod console;
 pub mod handler;
 pub mod key_selector;
@@ -40,6 +41,7 @@ pub struct ProxyState {
     pub detail_mode: Arc<AtomicBool>,
     global_concurrency: Arc<Semaphore>,
     session_concurrency: Arc<Mutex<HashMap<String, Arc<Semaphore>>>>,
+    auto_mode: Mutex<auto_mode::AutoModeState>,
 }
 
 impl ProxyState {
@@ -175,6 +177,7 @@ pub fn build_proxy_state(db: Arc<Mutex<Database>>) -> Result<Arc<ProxyState>, St
         detail_mode: Arc::new(AtomicBool::new(false)),
         global_concurrency: Arc::new(Semaphore::new(GLOBAL_CONCURRENCY_LIMIT)),
         session_concurrency: Arc::new(Mutex::new(HashMap::new())),
+        auto_mode: Mutex::new(auto_mode::AutoModeState::default()),
     }))
 }
 
