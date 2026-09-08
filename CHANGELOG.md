@@ -5,6 +5,17 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [3.9.2] - 2026-09-08
+
+### Fixed
+
+- 修复 `cc-use claude` / `cc-use grok` 匹配项目后，在客户端绑定未保存前置命令、项目配置仍保留命令时漏执行的问题；命令读取与 GUI 对齐，优先使用当前客户端绑定，否则读取同客户端的项目配置
+- 保持调用目录执行前置命令，成功后启动客户端并继承导出的环境变量；失败则中止启动并保留退出码
+
+### Compatibility
+
+- 更新应用内 CLI 后生效；无需重新配置项目、密钥或前置命令。详见 [CLI 使用指南](./guides/CLI.md) 与 [v3.9.2 文档](https://github.com/mipawn/cc-use-docs/blob/main/v3.9.2/README.md)
+
 ## [3.9.1] - 2026-09-08
 
 ### Fixed

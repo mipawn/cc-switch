@@ -4,7 +4,7 @@ A desktop configuration manager for **Claude Code / Grok Build / Codex Desktop /
 
 [中文文档](./README.md)
 
-> **3.8.3 Update**: Fixed `cc-use claude` replacing the terminal's working directory with a desktop project root or a physical path. Without a desktop project, the statusline now shows the actual invocation directory. See [CHANGELOG](./CHANGELOG.md).
+> **3.9.2 Update**: Fixed configured prelaunch commands being skipped when `cc-use claude` / `cc-use grok` matches a project. See [CHANGELOG](./CHANGELOG.md).
 >
 > **3.0 Architecture Update**: The local proxy is now an independent `cc-use-daemon` process, with instance identity explicitly modeled at launch time.
 >

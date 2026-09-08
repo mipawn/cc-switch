@@ -4,7 +4,7 @@
 
 [English](./README_EN.md)
 
-> **3.8.3 更新**：修复从终端执行 `cc-use claude` 时工作目录被桌面项目根目录或物理路径替换的问题；未建立桌面项目时，状态栏会显示实际调用目录。详见 [CHANGELOG](./CHANGELOG.md)。
+> **3.9.2 更新**：修复 `cc-use claude` / `cc-use grok` 匹配项目后漏执行已配置前置命令的问题。详见 [CHANGELOG](./CHANGELOG.md) 与 [CLI 使用指南](./guides/CLI.md)。
 >
 > **3.0 架构更新**：代理抽离为独立 `cc-use-daemon` 进程，实例身份在启动时显式建模。
 >
