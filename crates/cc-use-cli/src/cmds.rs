@@ -441,6 +441,11 @@ fn cli_launch_context(project: Option<&Project>, cwd: &Path, client: &str) -> Cl
                 .bindings
                 .get(client)
                 .and_then(|binding| binding.prelaunch_command.clone())
+                .or_else(|| {
+                    (normalize_cli_type(&project.cli_type) == client)
+                        .then(|| project.prelaunch_command.clone())
+                        .flatten()
+                })
                 .filter(|value| !value.trim().is_empty()),
         ),
         None => (
@@ -1028,6 +1033,83 @@ mod tests {
         assert_eq!(launch.project_id.as_deref(), Some(project.id.as_str()));
         assert_eq!(launch.project_name, "Demo Project");
         assert_eq!(launch.working_dir, "/tmp/demo/packages/web");
+    }
+
+    #[test]
+    fn cli_project_context_resolves_prelaunch_command_like_gui() {
+        use cc_use_lib::models::{CreateProjectInput, ProjectClientBinding};
+
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open_at(&dir.path().join("test.db")).unwrap();
+        let mut project = db
+            .project_create(&CreateProjectInput {
+                name: "Demo".to_string(),
+                path: "/tmp/demo".to_string(),
+                group_name: None,
+                remark: None,
+                provider_id: None,
+                api_key_id: None,
+                cli_type: Some("claude_code".to_string()),
+                terminal_type: None,
+                prelaunch_command: Some("export DEMO_READY=1".to_string()),
+            })
+            .unwrap();
+
+        // A project can retain its command in the legacy fields while the
+        // client binding is missing or has no command.
+        for (legacy_client, client, binding_command, expected) in [
+            (
+                "claude_code",
+                "claude_code",
+                None,
+                Some("export DEMO_READY=1"),
+            ),
+            ("claude", "claude_code", None, Some("export DEMO_READY=1")),
+            ("grok", "grok", None, Some("export DEMO_READY=1")),
+            ("claude_code", "grok", None, None),
+            ("grok", "claude_code", None, None),
+            (
+                "claude_code",
+                "claude_code",
+                Some("binding-init"),
+                Some("binding-init"),
+            ),
+            ("claude_code", "grok", Some("grok-init"), Some("grok-init")),
+            ("claude_code", "claude_code", Some(" \n "), None),
+        ] {
+            project.cli_type = legacy_client.to_string();
+            project.bindings.clear();
+            if binding_command.is_none() {
+                let launch = cli_launch_context(Some(&project), Path::new("/tmp/demo/sub"), client);
+                assert_eq!(
+                    launch.prelaunch_command.as_deref(),
+                    expected,
+                    "missing binding: {legacy_client}/{client}"
+                );
+            }
+            project.bindings.insert(
+                client.to_string(),
+                ProjectClientBinding {
+                    cli_type: client.to_string(),
+                    provider_id: None,
+                    api_key_id: None,
+                    terminal_type: "terminal".to_string(),
+                    prelaunch_command: binding_command.map(str::to_string),
+                },
+            );
+            let launch = cli_launch_context(Some(&project), Path::new("/tmp/demo/sub"), client);
+            assert_eq!(
+                launch.prelaunch_command.as_deref(),
+                expected,
+                "{legacy_client}/{client}/{binding_command:?}"
+            );
+            assert_eq!(launch.working_dir, "/tmp/demo/sub");
+        }
+        assert!(
+            cli_launch_context(None, Path::new("/tmp/other"), "claude_code")
+                .prelaunch_command
+                .is_none()
+        );
     }
 
     #[test]

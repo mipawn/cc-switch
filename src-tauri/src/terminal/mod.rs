@@ -754,6 +754,56 @@ mod tests {
     }
 
     #[test]
+    fn wrapper_runs_prelaunch_before_client_and_stops_on_failure() {
+        for cli_type in ["claude_code", "grok"] {
+            for exit_code in [0, 7] {
+                let dir = tempfile::tempdir().unwrap();
+                let path = dir.path().join("wrapper.sh");
+                let events = dir.path().join("events");
+                // Keep management requests local to the fixture.
+                let curl = dir.path().join("curl");
+                std::fs::write(&curl, "#!/bin/sh\nexit 0\n").unwrap();
+                set_script_permissions(&curl).unwrap();
+                let mut preview = preview(cli_type);
+                preview.env.insert(
+                    "PATH".to_string(),
+                    format!("{}:/usr/bin:/bin", dir.path().display()),
+                );
+                preview.prelaunch_command = Some(format!(
+                    "printf 'prelaunch\\n' >> events; export DEMO_READY=ready; (exit {exit_code})"
+                ));
+                preview.command = "printf 'client:%s\\n' \"$DEMO_READY\" >> events".to_string();
+                write_managed_launch_script(
+                    &path,
+                    dir.path().to_str().unwrap(),
+                    &preview,
+                    "instance-test",
+                    "test",
+                    "management-token",
+                    22345,
+                )
+                .unwrap();
+
+                let status = std::process::Command::new("/bin/sh")
+                    .arg(&path)
+                    .status()
+                    .unwrap();
+                assert_eq!(status.code(), Some(exit_code), "{cli_type}");
+                assert_eq!(
+                    std::fs::read_to_string(events).unwrap(),
+                    if exit_code == 0 {
+                        "prelaunch\nclient:ready\n"
+                    } else {
+                        "prelaunch\n"
+                    },
+                    "{cli_type}/{exit_code}"
+                );
+                assert!(!path.exists());
+            }
+        }
+    }
+
+    #[test]
     fn claude_wrapper_keeps_the_existing_background_supervision() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("claude-wrapper.sh");
