@@ -181,6 +181,7 @@ impl Database {
                 session_id TEXT,
                 model TEXT,
                 request_model TEXT,
+                request_kind TEXT,
                 input_tokens INTEGER DEFAULT 0,
                 output_tokens INTEGER DEFAULT 0,
                 cache_read_tokens INTEGER DEFAULT 0,
@@ -409,6 +410,7 @@ impl Database {
             "ALTER TABLE proxy_sessions ADD COLUMN revoked_reason TEXT",
             // v3.7.0: failed requests are recorded too, so every row states its outcome.
             "ALTER TABLE request_logs ADD COLUMN outcome TEXT",
+            "ALTER TABLE request_logs ADD COLUMN request_kind TEXT",
         ];
 
         for stmt in &alter_statements {

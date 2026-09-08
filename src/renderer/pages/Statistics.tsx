@@ -24,6 +24,7 @@ import type {
   StatsTimeRange,
   RequestOutcome,
   UsageDimensionItem,
+  RecentRequestLogDisplay,
 } from '@shared/types'
 import { formatExactTokenCount, formatTokenCount } from '../utils/formatTokens'
 import UsageTimeRangePicker from '../components/usage/UsageTimeRangePicker'
@@ -132,14 +133,18 @@ export default function Statistics() {
       dataIndex: 'model',
       key: 'model',
       width: 240,
-      render: (v: string | null) =>
-        v ? (
+      render: (v: string | null, record: RecentRequestLogDisplay) => (
+        <div>
           <Text ellipsis={{ tooltip: v }} style={{ display: 'block', maxWidth: '100%' }}>
-            {v}
+            {v || '-'}
           </Text>
-        ) : (
-          '-'
-        ),
+          {record.requestKind === 'auto_mode' && (
+            <Tooltip title={t('statistics.autoModeRequestHint')}>
+              <Tag color='gold'>Auto mode</Tag>
+            </Tooltip>
+          )}
+        </div>
+      ),
     },
     {
       title: t('statistics.key'),

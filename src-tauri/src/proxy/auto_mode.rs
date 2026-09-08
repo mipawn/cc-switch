@@ -1,4 +1,5 @@
-//! Opt-in transport adaptation for Claude Code's permission classifier.
+//! Claude Code permission classifier detection, opt-in model adaptation, and
+//! validated response compatibility.
 use axum::body::Bytes;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -45,7 +46,7 @@ fn text_blocks(value: &Value) -> Vec<&str> {
         .collect()
 }
 
-fn is_classifier(body: &Value) -> bool {
+pub(super) fn is_classifier(body: &Value) -> bool {
     // Match the system role and the final transcript envelope, never words in
     // arbitrary user/tool content. Verified against Claude Code 2.1.220.
     let system_matches = text_blocks(&body["system"])
@@ -66,6 +67,21 @@ fn is_classifier(body: &Value) -> bool {
                 && blocks.iter().any(|text| text.contains("</transcript>"))
         })
         && body["tools"].as_array().is_none_or(Vec::is_empty)
+}
+
+/// Some gateways label non-streaming Messages JSON as text/plain. The Anthropic
+/// SDK then returns a string and Claude Code crashes when accessing its usage.
+/// Validate the message envelope before correcting the MIME type; never change
+/// the classifier's verdict, compressed bytes, or an upstream error response.
+pub(super) fn is_message_response(bytes: &[u8]) -> bool {
+    let Ok(body) = serde_json::from_slice::<Value>(bytes) else {
+        return false;
+    };
+    body["type"] == "message"
+        && body["role"] == "assistant"
+        && body["content"].is_array()
+        && body["usage"]["input_tokens"].as_u64().is_some()
+        && body["usage"]["output_tokens"].as_u64().is_some()
 }
 
 impl AutoModeState {

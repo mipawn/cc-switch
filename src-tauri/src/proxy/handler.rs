@@ -428,15 +428,20 @@ pub async fn proxy_handler(
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
     let body_bytes = apply_model_mapping(body_bytes, &route_execution);
-    let body_bytes = if matches!(
+    let is_claude_messages = matches!(
         route_execution.cli_type.as_deref(),
         Some("claude" | "claude_code")
     ) && method == axum::http::Method::POST
         && req_path
             .split('?')
             .next()
-            .is_some_and(|path| matches!(path, "/v1/messages" | "/claude/v1/messages"))
-    {
+            .is_some_and(|path| matches!(path, "/v1/messages" | "/claude/v1/messages"));
+    // Identify purpose independently of whether per-key adaptation is enabled.
+    let request_kind = request_json
+        .as_ref()
+        .filter(|body| is_claude_messages && super::auto_mode::is_classifier(body))
+        .map(|_| "auto_mode".to_string());
+    let body_bytes = if is_claude_messages {
         match (
             route_execution.model_mapping.as_deref(),
             route_execution.log_ctx.as_ref(),
@@ -540,6 +545,7 @@ pub async fn proxy_handler(
         api_key_id: ctx.api_key_id.clone(),
         project_id: ctx.project_id.clone(),
         request_model: request_model.clone(),
+        request_kind: request_kind.clone(),
         status_code: None,
         start_time,
         path: req_path.clone(),
@@ -751,6 +757,18 @@ pub async fn proxy_handler(
         resp_bytes
     };
     let mut outgoing_resp_headers = resp_headers.clone();
+    let content_type = if request_kind.as_deref() == Some("auto_mode")
+        && status.is_success()
+        && super::auto_mode::is_message_response(&decoded)
+    {
+        outgoing_resp_headers.insert(
+            "content-type",
+            hyper::header::HeaderValue::from_static("application/json"),
+        );
+        "application/json".to_string()
+    } else {
+        content_type
+    };
     if response_model_was_added {
         // The normalized body is decoded and re-serialized, so stale encoding
         // and length metadata must not be forwarded.
@@ -1748,6 +1766,7 @@ struct LogContext {
     api_key_id: String,
     project_id: Option<String>,
     request_model: Option<String>,
+    request_kind: Option<String>,
     status_code: Option<u16>,
     start_time: std::time::Instant,
     path: String,
@@ -1872,6 +1891,7 @@ fn record_usage(
         session_id: Some(ctx.session_token.clone()),
         model: Some(model_name.to_string()),
         request_model: ctx.request_model.clone(),
+        request_kind: ctx.request_kind.clone(),
         input_tokens: usage.input_tokens,
         output_tokens: usage.output_tokens,
         cache_read_tokens: usage.cache_read_tokens,
@@ -3100,6 +3120,7 @@ mod tests {
             api_key_id: api_key.id.clone(),
             project_id: None,
             request_model: Some("gpt-5.5".to_string()),
+            request_kind: None,
             status_code: Some(200),
             start_time: std::time::Instant::now(),
             path: "/v1/responses".to_string(),
@@ -3213,6 +3234,7 @@ mod tests {
             api_key_id: api_key_id.to_string(),
             project_id: None,
             request_model: Some("claude-3-5-sonnet".to_string()),
+            request_kind: None,
             status_code: Some(200),
             start_time: std::time::Instant::now(),
             path: "/v1/messages".to_string(),

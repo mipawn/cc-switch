@@ -5,6 +5,22 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [3.9.1] - 2026-09-08
+
+### Fixed
+
+- 修复部分网关把 Auto mode 分类器的合法 Messages JSON 标为 `text/plain`，导致 Claude Code 读取 `usage.input_tokens` 抛错、随后提示分类器暂不可用的问题；仅在成功响应且 JSON 结构校验通过后修正 Content-Type，保留原始判定与响应字节
+
+### Added
+
+- 用量统计的最近请求记录新增 `Auto mode` 标记，成功和失败的分类器请求均可识别，Token 继续计入原模型、Key 和项目；导出导入保留请求类型，历史记录不补标
+
+### Compatibility
+
+- 响应头修复与请求类型识别独立于 Key 的模型适配开关；模型选择及思考配置沿用 v3.9.0
+- 已用真实 Claude Code 2.1.220、agentRouter / DeepSeek 线路完成新代理端到端复测：分类器成功、Bash 正常执行、用量类型入库。GLM 与其他供应商仍需分别验证
+- 升级包含运行中的 daemon 后，后续请求生效；详见 [v3.9.1 文档](https://github.com/mipawn/cc-use-docs/blob/main/v3.9.1/README.md)
+
 ## [3.9.0] - 2026-09-07
 
 ### Added

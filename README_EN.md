@@ -40,7 +40,7 @@ A desktop configuration manager for **Claude Code / Grok Build / Codex Desktop /
 - **Token Tracking** - Logs token usage, including both cache buckets, plus failure details; Chinese uses ten-thousand/hundred-million units, English uses `K / M / B`, and tooltips show exact counts
 - **Statistics** - Dashboard shows today's tokens, requests, failures, and a daily heatmap; Statistics provides custom date queries, token composition, trends, key/project usage, failures, and request history
 - **System Tray** - Minimize to tray on close while the daemon keeps running; tray menu supports service control and quick-launching recent projects
-- **Auto mode classifier adaptation (experimental)** - Enable per key to follow the Claude session model or choose a classifier model, with low or disabled thinking. Off by default; see the [v3.9.0 guide](https://github.com/mipawn/cc-use-docs/blob/main/v3.9.0/README.md).
+- **Auto mode classifier adaptation (experimental)** - Enable per key to follow the Claude session model or choose a classifier model, with low or disabled thinking. Off by default. Includes classifier response header compatibility fixes and Auto mode labels in usage statistics; see the [v3.9.1 guide](https://github.com/mipawn/cc-use-docs/blob/main/v3.9.1/README.md).
 - **Auto Update** - In-app update detection and download with progress display (signature verification via `tauri-plugin-updater`)
 - **Claude Code Config Management** - Global and per-key local configuration (JSON), automatically merged and injected at launch; the editor now lives on the Claude Code page
 - **Internationalization** - Chinese and English UI

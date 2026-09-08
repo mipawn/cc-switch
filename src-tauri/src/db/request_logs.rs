@@ -78,7 +78,7 @@ impl Database {
                     cache_read_tokens, cache_creation_tokens,
                     latency_ms, first_token_ms, status_code, error_message,
                     is_streaming, created_at,
-                    key_alias, provider_name, project_name, outcome
+                    key_alias, provider_name, project_name, outcome, request_kind
              FROM request_logs ORDER BY created_at ASC",
         )?;
 
@@ -106,6 +106,7 @@ impl Database {
                 provider_name: row.get(18)?,
                 project_name: row.get(19)?,
                 outcome: row.get(20)?,
+                request_kind: row.get(21)?,
             })
         })?;
 
@@ -117,15 +118,15 @@ impl Database {
             "INSERT INTO request_logs (id, provider_id, api_key_id, project_id, session_id,
                 model, request_model, input_tokens, output_tokens, cache_read_tokens,
                 cache_creation_tokens, latency_ms, first_token_ms, status_code, error_message,
-                is_streaming, created_at, key_alias, provider_name, project_name, outcome)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
+                is_streaming, created_at, key_alias, provider_name, project_name, outcome, request_kind)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
             rusqlite::params![
                 log.id, log.provider_id, log.api_key_id, log.project_id, log.session_id,
                 log.model, log.request_model, log.input_tokens, log.output_tokens,
                 log.cache_read_tokens, log.cache_creation_tokens,
                 log.latency_ms, log.first_token_ms, log.status_code, log.error_message,
                 if log.is_streaming { 1i32 } else { 0i32 }, log.created_at,
-                log.key_alias, log.provider_name, log.project_name, log.outcome,
+                log.key_alias, log.provider_name, log.project_name, log.outcome, log.request_kind,
             ],
         )?;
         Ok(())
@@ -136,8 +137,8 @@ impl Database {
             "INSERT OR REPLACE INTO request_logs (id, provider_id, api_key_id, project_id, session_id,
                 model, request_model, input_tokens, output_tokens, cache_read_tokens,
                 cache_creation_tokens, latency_ms, first_token_ms, status_code, error_message,
-                is_streaming, created_at, key_alias, provider_name, project_name, outcome)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
+                is_streaming, created_at, key_alias, provider_name, project_name, outcome, request_kind)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
             rusqlite::params![
                 log.id,
                 log.provider_id,
@@ -160,6 +161,7 @@ impl Database {
                 log.provider_name,
                 log.project_name,
                 log.outcome,
+                log.request_kind,
             ],
         )?;
         Ok(())
@@ -554,7 +556,7 @@ impl Database {
                         ),
                         r.input_tokens, r.output_tokens,
                         r.cache_read_tokens, r.cache_creation_tokens,
-                        r.latency_ms, r.status_code, r.outcome, r.error_message, r.created_at
+                        r.latency_ms, r.status_code, r.outcome, r.error_message, r.created_at, r.request_kind
                  FROM request_logs r
                  LEFT JOIN api_keys k ON r.api_key_id = k.id
                  LEFT JOIN providers p ON r.provider_id = p.id
@@ -580,6 +582,7 @@ impl Database {
                     outcome: row.get(11)?,
                     error_message: row.get(12)?,
                     created_at: row.get(13)?,
+                    request_kind: row.get(14)?,
                 })
             })?
             .filter_map(|r| r.ok())
@@ -681,6 +684,7 @@ mod tests {
             session_id: None,
             model: Some("gpt-5.5".into()),
             request_model: Some("gpt-5.5".into()),
+            request_kind: None,
             input_tokens: 10,
             output_tokens: 20,
             cache_read_tokens: 0,
@@ -706,6 +710,54 @@ mod tests {
         log.outcome = Some(outcome.into());
         log.error_message = Some("Rate limit exceeded".into());
         log
+    }
+
+    #[test]
+    fn request_kind_survives_export_import_and_legacy_migration() {
+        let db = Database::new_in_memory().unwrap();
+        let legacy = mk_billable_log("legacy", chrono::Utc::now().to_rfc3339());
+        db.request_log_create(&legacy).unwrap();
+        db.conn
+            .execute("ALTER TABLE request_logs DROP COLUMN request_kind", [])
+            .unwrap();
+        db.run_alter_migrations();
+        assert_eq!(db.request_log_list_all().unwrap()[0].request_kind, None);
+        let mut old_json = serde_json::to_value(&legacy).unwrap();
+        old_json.as_object_mut().unwrap().remove("requestKind");
+        assert_eq!(
+            serde_json::from_value::<RequestLog>(old_json)
+                .unwrap()
+                .request_kind,
+            None
+        );
+
+        let mut classifier = mk_billable_log("classifier", chrono::Utc::now().to_rfc3339());
+        classifier.request_kind = Some("auto_mode".into());
+        db.request_log_create(&classifier).unwrap();
+        let exported = serde_json::to_string(&db.request_log_list_all().unwrap()).unwrap();
+        let restored = Database::new_in_memory().unwrap();
+        for log in serde_json::from_str::<Vec<RequestLog>>(&exported).unwrap() {
+            restored.request_log_upsert(&log).unwrap();
+        }
+        let rows = restored
+            .request_log_get_recent_paginated("all", 1, 10)
+            .unwrap()
+            .items;
+        assert_eq!(
+            rows.iter()
+                .find(|row| row.id == "classifier")
+                .unwrap()
+                .request_kind
+                .as_deref(),
+            Some("auto_mode")
+        );
+        assert_eq!(
+            rows.iter()
+                .find(|row| row.id == "legacy")
+                .unwrap()
+                .request_kind,
+            None
+        );
     }
 
     #[test]

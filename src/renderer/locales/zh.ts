@@ -681,6 +681,7 @@ export default {
     projectUsage: '按项目查看用量',
     currentRange: '当前查询范围',
     recentRequests: '最近请求记录',
+    autoModeRequestHint: 'Claude Code Auto mode 安全分类器请求，用量已计入统计。历史记录不补标。',
     totalItems: '共 {{total}} 条',
     rank: '#',
     name: '名称',

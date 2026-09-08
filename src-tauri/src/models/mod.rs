@@ -370,6 +370,9 @@ pub struct RequestLog {
     pub session_id: Option<String>,
     pub model: Option<String>,
     pub request_model: Option<String>,
+    /// Recognized request purpose; absent on historical/unclassified requests.
+    #[serde(default)]
+    pub request_kind: Option<String>,
     pub input_tokens: i64,
     pub output_tokens: i64,
     pub cache_read_tokens: i64,
@@ -480,6 +483,7 @@ pub struct DailyModelUsageItem {
 #[serde(rename_all = "camelCase")]
 pub struct RecentRequestLogDisplay {
     pub id: String,
+    pub request_kind: Option<String>,
     pub model: Option<String>,
     pub key_alias: Option<String>,
     pub provider_name: Option<String>,

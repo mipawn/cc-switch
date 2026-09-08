@@ -679,3 +679,149 @@ async fn auto_mode_supports_disabled_and_preserved_thinking_and_opt_out() {
         }
     }
 }
+
+// Real gateway regression: Claude's SDK treats text/plain as a string, even
+// when the response body is a valid Messages object with usage and a verdict.
+#[tokio::test]
+async fn auto_mode_json_mime_and_usage_survive_plain_missing_and_gzip_headers() {
+    use std::io::Write;
+    let body = br#"{"id":"msg-test","type":"message","role":"assistant","model":"deepseek-v4-flash","content":[{"type":"text","text":"<block>no"}],"stop_reason":"stop_sequence","stop_sequence":"</block>","usage":{"input_tokens":123,"output_tokens":7}}"#;
+    for mime in [
+        Some("text/plain; charset=utf-8"),
+        None,
+        Some("application/json"),
+    ] {
+        for compressed in [false, true] {
+            let bytes = if compressed {
+                let mut encoder =
+                    flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+                encoder.write_all(body).unwrap();
+                encoder.finish().unwrap()
+            } else {
+                body.to_vec()
+            };
+            let expected = bytes.clone();
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let app = Router::new().route(
+                "/v1/messages",
+                post(move || {
+                    let bytes = bytes.clone();
+                    async move {
+                        let mut response = axum::http::Response::builder().status(200);
+                        if let Some(mime) = mime {
+                            response = response.header("content-type", mime);
+                        }
+                        if compressed {
+                            response = response.header("content-encoding", "gzip");
+                        }
+                        response.body(Body::from(bytes)).unwrap()
+                    }
+                }),
+            );
+            let server = tokio::spawn(async move {
+                axum::serve(listener, app).await.unwrap();
+            });
+            // Detection and transport repair also work when model adaptation is off.
+            let (state, token) = setup_provider_with_mapping(port, "claude", None);
+            let response = proxy_handler(
+                AxumState(state.clone()),
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/messages")
+                    .header("authorization", format!("Bearer {token}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(auto_mode_request("session").to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+            assert_eq!(response.headers()["content-type"], "application/json");
+            assert_eq!(
+                response.headers().contains_key("content-encoding"),
+                compressed
+            );
+            let actual = axum::body::to_bytes(response.into_body(), 4096)
+                .await
+                .unwrap();
+            assert_eq!(
+                actual.as_ref(),
+                expected,
+                "must not rewrite the verdict or encoded bytes"
+            );
+            let db = state.db.lock().unwrap();
+            let logs = db.request_log_list_all().unwrap();
+            assert_eq!(logs.len(), 1);
+            assert_eq!(logs[0].request_kind.as_deref(), Some("auto_mode"));
+            assert_eq!((logs[0].input_tokens, logs[0].output_tokens), (123, 7));
+            assert_eq!(
+                db.request_log_get_recent_paginated("all", 1, 10)
+                    .unwrap()
+                    .items[0]
+                    .request_kind
+                    .as_deref(),
+                Some("auto_mode")
+            );
+            server.abort();
+        }
+    }
+}
+
+#[tokio::test]
+async fn auto_mode_does_not_relabel_errors_invalid_envelopes_or_regular_requests() {
+    let valid = r#"{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":1,"output_tokens":1}}"#;
+    for (status, body, classifier) in [
+        (200, "<html>maintenance</html>", true),
+        (200, r#"{"type":"message","content":[]}"#, true),
+        (503, valid, true),
+        (200, valid, false),
+    ] {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let app = Router::new().route(
+            "/v1/messages",
+            post(move || async move { (StatusCode::from_u16(status).unwrap(), body) }),
+        );
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        let (state, token) = setup_provider_with_mapping(port, "claude", None);
+        let mut request = auto_mode_request("session");
+        if !classifier {
+            request["system"] = serde_json::json!("You are a coding assistant.");
+        }
+        let response = proxy_handler(
+            AxumState(state.clone()),
+            Request::builder()
+                .method("POST")
+                .uri("/v1/messages")
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::from(request.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.status().as_u16(), status);
+        assert_eq!(
+            response.headers()["content-type"],
+            "text/plain; charset=utf-8"
+        );
+        assert_eq!(
+            axum::body::to_bytes(response.into_body(), 4096)
+                .await
+                .unwrap()
+                .as_ref(),
+            body.as_bytes()
+        );
+        let logs = state.db.lock().unwrap().request_log_list_all().unwrap();
+        if status == 503 {
+            assert_eq!(logs[0].request_kind.as_deref(), Some("auto_mode"));
+            assert_eq!(logs[0].outcome.as_deref(), Some("upstream_error"));
+        } else {
+            assert!(logs
+                .iter()
+                .all(|log| log.request_kind.is_none() || classifier));
+        }
+        server.abort();
+    }
+}

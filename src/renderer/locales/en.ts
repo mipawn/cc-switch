@@ -686,6 +686,8 @@ export default {
     projectUsage: 'Usage by Project',
     currentRange: 'Selected range',
     recentRequests: 'Recent Requests',
+    autoModeRequestHint:
+      'Claude Code Auto mode safety classifier request. Usage is included in statistics. Historical records are not relabeled.',
     totalItems: '{{total}} total',
     rank: '#',
     name: 'Name',

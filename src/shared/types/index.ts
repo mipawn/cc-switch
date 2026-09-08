@@ -514,6 +514,7 @@ export interface RequestLog {
   sessionId: string | null
   model: string | null
   requestModel: string | null
+  requestKind?: 'auto_mode' | null
   inputTokens: number
   outputTokens: number
   cacheReadTokens: number
@@ -663,6 +664,7 @@ export interface DailyTrendItem {
 
 export interface RecentRequestLogDisplay {
   id: string
+  requestKind?: 'auto_mode' | null
   model: string | null
   keyAlias: string | null
   providerName: string | null
